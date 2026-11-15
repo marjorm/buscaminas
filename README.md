@@ -2,6 +2,10 @@
 
 Aplicación web de Buscaminas con cuentas de usuario, tres niveles, partidas persistentes, historial y ranking. **Backend y frontend se ejecutan juntos** mediante Spring Boot en `http://localhost:8080`.
 
+## Integrantes 	Grupo5Exa2
+- Maria Ramirez Elizondo
+- Cristopher Madrigal Masis
+
 ## 1. Requisitos
 
 - **JDK 17**, **MySQL Server 8** y un navegador moderno.
