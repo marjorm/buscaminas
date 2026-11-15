@@ -31,10 +31,28 @@ async function api(ruta, opciones = {}) {
 
 const formatearTiempo = ms => {
   if (ms === null || ms === undefined) return '—';
-  const segundos = Math.floor(ms / 1000);
-  const minutos = Math.floor(segundos / 60);
-  return `${String(minutos).padStart(2, '0')}:${String(segundos % 60).padStart(2, '0')}.${String(Math.floor((ms % 1000) / 10)).padStart(2, '0')}`;
+  const centesimasTotales = Math.floor(Math.max(0, Number(ms) || 0) / 10);
+  const minutos = Math.floor(centesimasTotales / 6000);
+  const segundos = Math.floor(centesimasTotales / 100) % 60;
+  const centesimas = centesimasTotales % 100;
+  return `${String(minutos).padStart(2, '0')}:${String(segundos).padStart(2, '0')}.${String(centesimas).padStart(2, '0')}`;
 };
+
+/** Reloj visual fluido. El resultado oficial sigue calculándose en el servidor. */
+function Reloj({ partida }) {
+  const [tiempo, setTiempo] = useState(partida.tiempoMs || 0);
+  useEffect(() => {
+    const base = Number(partida.tiempoMs) || 0;
+    setTiempo(base);
+    if (partida.estado !== 'EN_CURSO') return;
+    const inicio = performance.now();
+    const intervalo = setInterval(() => {
+      setTiempo(base + Math.max(0, performance.now() - inicio));
+    }, 50);
+    return () => clearInterval(intervalo);
+  }, [partida.id, partida.estado, partida.tiempoMs]);
+  return <strong aria-live="off">{formatearTiempo(tiempo)}</strong>;
+}
 const formatearFecha = fecha => fecha ? new Date(fecha).toLocaleString('es-CR') : '—';
 const texto = estado => ({GANADA:'Ganada',PERDIDA:'Perdida',EN_CURSO:'En curso',ABANDONADA:'Abandonada'})[estado] || estado;
 
@@ -99,10 +117,10 @@ function Tablero({ partida, ejecutar, ocupado }) {
         <div className="pill">Minas <strong>{partida.minas}</strong></div>
         <div className="pill">Banderas <strong>{partida.banderas}</strong></div>
         <div className="pill">Movimientos <strong>{partida.movimientos}</strong></div>
-        <div className="pill">Tiempo <strong>{formatearTiempo(partida.tiempoMs)}</strong></div>
+        <div className="pill">Tiempo <Reloj partida={partida}/></div>
       </div>
     </div>
-    {!activa && <p className={`estado-fin ${partida.resultado === 'PERDIDA' ? 'perdida' : ''}`}>Partida {texto(partida.resultado).toLowerCase()}</p>}
+    {!activa && <p className={`estado-fin ${partida.resultado === 'PERDIDA' ? 'perdida' : ''}`}>{partida.resultado === 'GANADA' ? '¡Ganaste! Descubriste todas las casillas seguras.' : partida.resultado === 'PERDIDA' ? 'Perdiste: descubriste una mina.' : 'Partida abandonada.'}</p>}
     <div className="tablero-scroll">
       <div className="tablero" style={{gridTemplateColumns:`repeat(${partida.columnas},32px)`}} role="grid" aria-label="Tablero de Buscaminas">
         {partida.casillas.map((fila, f) => fila.map((casilla,c) => {
@@ -118,7 +136,7 @@ function Tablero({ partida, ejecutar, ocupado }) {
         }))}
       </div>
     </div>
-    <p className="pie-tablero">Clic izquierdo: revelar. Clic derecho: colocar o quitar bandera. El servidor valida cada acción.</p>
+    <p className="pie-tablero">Clic izquierdo: revelar. Clic derecho: colocar o quitar bandera. Marca con banderas las casillas que consideres peligrosas.</p>
   </div>;
 }
 
@@ -140,12 +158,6 @@ function Juego({ alCambiar }) {
   }, []);
   useEffect(()=>{cargar();},[cargar]);
 
-  // Actualización visual del tiempo; el valor definitivo lo calcula el servidor.
-  useEffect(()=>{
-    if (!partida || partida.estado !== 'EN_CURSO') return;
-    const intervalo = setInterval(()=>setPartida(p=>p && p.estado==='EN_CURSO' ? {...p, tiempoMs:p.tiempoMs+1000} : p),1000);
-    return ()=>clearInterval(intervalo);
-  },[partida?.id,partida?.estado]);
 
   const nueva = async nivel => {
     setOcupado(true);setError('');
@@ -166,7 +178,7 @@ function Juego({ alCambiar }) {
   };
   return <section className="panel">
     <h1>Jugar Buscaminas</h1>
-    <p className="subtitulo">Encuentra todas las casillas seguras sin descubrir una mina. Tu avance se guarda en MySQL.</p>
+    <p className="subtitulo">Encuentra todas las casillas seguras sin descubrir una mina. Tu avance se guarda para que puedas continuar cuando quieras.</p>
     <Alerta error={error}/>
     {(!partida || partida.estado !== 'EN_CURSO') && <div className="tarjetas" style={{margin:'18px 0'}}>
       {niveles.map(n=><button className="tarjeta-nivel" key={n.id} type="button" disabled={ocupado} onClick={()=>nueva(n.id)}><strong>{n.nombre}</strong><small>{n.filas} × {n.columnas} · {n.minas} minas</small></button>)}
@@ -221,7 +233,7 @@ function App(){
       vista==='juego'?<Juego alCambiar={()=>setRefresco(v=>v+1)}/>:
       vista==='historial'?<Historial usuario={usuario} refresco={refresco}/>:<Ranking usuario={usuario} refresco={refresco}/>
     ):<><Acceso key={vista} modo={vista} alCompletar={entrar}/><div className="acciones" style={{justifyContent:'center'}}><button className="boton secundario" type="button" onClick={()=>setVista(v=>v==='login'?'registro':'login')}>{vista==='login'?'Crear cuenta nueva':'Ya tengo cuenta'}</button></div></>}</main>
-    <footer className="footer">Buscaminas · Programación 4 · Spring Boot + React + MySQL</footer>
+    <footer className="footer">Buscaminas · Pon a prueba tu lógica y encuentra todas las casillas seguras</footer>
   </>;
 }
 

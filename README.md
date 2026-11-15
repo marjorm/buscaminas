@@ -1,300 +1,131 @@
-# Buscaminas
+# Buscaminas — Examen 2 de Programación 4
 
-## 1. Descripción del proyecto
+Juego web multijugador por cuentas, con tres niveles, tablero, banderas, historial y mejores tiempos. El juego corre en **una sola aplicación** en `http://localhost:8080`.
 
-Buscaminas es una aplicación web desarrollada como parte de la evaluación del curso de Programación 4.
+## Requisitos
 
-El proyecto consiste en implementar el juego Buscaminas mediante una arquitectura cliente-servidor, utilizando Spring Boot para el backend, MySQL para la persistencia de datos y React para la interfaz de usuario.
+- Java JDK 17.
+- MySQL Server 8, activo y con usuario que pueda crear la base `minas`.
+- Conexión a Internet para obtener las dependencias de Maven y cargar React 18 y Babel desde CDN.
+- Navegador moderno. **No se necesita Node.js, npm, Vite ni otro servidor frontend**.
 
-El sistema contempla el registro e inicio de sesión de jugadores, la administración de partidas, diferentes niveles de dificultad, el historial de partidas y un ranking de jugadores.
+## 1. Crear la base de datos desde cero
 
-**Estado actual:** se encuentran implementados y probados los módulos de autenticación, persistencia, historial y ranking. La lógica del juego y la interfaz React están pendientes de integración.
+**ADVERTENCIA:** `minas.sql` elimina las tablas `usuario` y `partida` de `minas` antes de recrearlas. **No lo vuelvas a importar si deseas conservar partidas.** Haz un respaldo primero.
 
-## 2. Tecnologías utilizadas
-
-- Java 17
-- Spring Boot 3.3.4
-- Spring Web
-- Spring Data JPA
-- Spring Security
-- Bean Validation
-- MySQL 8
-- Maven
-- JUnit 5
-- Mockito
-- React 18 mediante CDN, previsto para la interfaz del juego
-
-## 3. Requisitos previos
-
-Para ejecutar el proyecto se necesita:
-
-- JDK 17
-- Maven 3.9 o una versión compatible
-- MySQL 8
-- Un navegador web
-- IntelliJ IDEA u otro editor compatible con proyectos Maven
-
-Se recomienda verificar las instalaciones mediante los comandos:
-
-```bash
-java -version
-mvn -version
-```
-
-## 4. Configuración de la base de datos
-
-El proyecto utiliza una base de datos MySQL llamada `minas`.
-
-### 4.1. Crear la base de datos
-
-Abrir MySQL Workbench e importar el archivo `minas.sql` proporcionado para el proyecto.
-
-El script contiene las estructuras necesarias para almacenar usuarios y partidas, además de la vista utilizada para consultar el ranking.
-
-**Importante:** el script puede eliminar y recrear estructuras existentes. No debe ejecutarse nuevamente sobre una base de datos que contenga información que se desee conservar.
-
-### 4.2. Configurar la conexión
-
-Abrir el archivo:
-
-`src/main/resources/application.properties`
-
-La configuración utilizada durante el desarrollo es:
-
-```properties
-spring.application.name=buscaminas
-spring.datasource.url=jdbc:mysql://127.0.0.1:${DB_PORT:3306}/minas
-spring.datasource.username=root
-spring.datasource.password=${DB_PASSWORD}
-spring.jpa.hibernate.ddl-auto=validate
-spring.jpa.show-sql=true
-```
-
-El puerto `3307` corresponde al servidor MySQL utilizado durante el desarrollo. Si MySQL está configurado en otro puerto, debe ajustarse la URL de conexión.
-
-La propiedad `ddl-auto=validate` permite verificar que las entidades Java coincidan con las tablas existentes sin solicitar a Hibernate que cree o modifique automáticamente el esquema.
-
-## 5. Configurar la contraseña de MySQL
-
-El puerto predeterminado de MySQL es 3306. Si la instalación utiliza otro puerto, se debe configurar la variable de entorno DB_PORT antes de ejecutar el proyecto.
-
-Por ejemplo, para utilizar el puerto 3307 en PowerShell:
-```powershell
-$env:DB_PORT = "3307"
-```
-
-Por seguridad, la contraseña de la base de datos no se almacena directamente en `application.properties`.
-
-En Windows PowerShell, ejecutar:
+En Windows PowerShell, desde la raíz del proyecto:
 
 ```powershell
-$env:DB_PASSWORD = Read-Host "Introduce la contraseña de MySQL"
+$mysql = 'C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe'
+$rutaSQL = (Resolve-Path .\minas.sql).Path.Replace('\', '/')
+& $mysql -h 127.0.0.1 -P 3306 -u root -p -e "SOURCE $rutaSQL"
 ```
 
-Ingresar la contraseña correspondiente al usuario configurado en MySQL.
+El esquema contiene exactamente las tablas `usuario` y `partida`, y la vista `vw_ranking`. Usa `utf8mb4`, claves foráneas con borrado en cascada, `CHECK`, JSON, índices y control de versiones de partidas.
 
-Esta variable estará disponible en la sesión actual de PowerShell. Si se abre una nueva terminal, deberá configurarse nuevamente.
+### Datos iniciales de demostración
 
-**No incluir contraseñas reales en el código ni subirlas a GitHub.**
-
-## 6. Ejecutar el backend
-
-Desde la carpeta principal del proyecto, donde se encuentra `pom.xml`, ejecutar:
-
-```powershell
-mvn spring-boot:run
-```
-
-Si la configuración es correcta, Spring Boot iniciará el servidor.
-
-La dirección predeterminada del backend es:
-
-`http://localhost:8080`
-
-Para detener el servidor, presionar `Ctrl + C` en la terminal.
-
-## 7. Autenticación y seguridad
-
-El proyecto implementa autenticación mediante sesiones HTTP utilizando Spring Security.
-
-Las contraseñas se almacenan mediante PBKDF2 con HMAC-SHA256, utilizando sal aleatoria.
-
-Se implementaron las siguientes operaciones:
-
-| Método | Endpoint | Descripción |
+| Usuario | Contraseña | Descripción |
 |---|---|---|
-| POST | `/api/auth/registro` | Registrar un usuario |
-| POST | `/api/auth/login` | Iniciar sesión |
-| POST | `/api/auth/logout` | Cerrar sesión |
-| GET | `/api/auth/me` | Consultar el usuario autenticado |
-| GET | `/api/auth/csrf` | Obtener el token CSRF |
+| `jugador1` | `Prueba123$` | Cuenta de prueba |
+| `docente` | `Prueba123$` | Cuenta de prueba, administrador |
 
-El sistema utiliza protección CSRF. Para realizar solicitudes POST desde un cliente HTTP, se debe obtener previamente el token CSRF y enviarlo mediante el encabezado `X-XSRF-TOKEN`, conservando las cookies de la sesión.
+El archivo `minas.sql` incorpora **una partida de ejemplo ganada por `jugador1` de 45.000 ms**, fechada el 10 de noviembre de 2026. **Es un dato precargado**, no una partida real de quien ingrese con esa cuenta. El ranking la incluye por diseño. Las partidas nuevas ganadas se incorporan al ranking y las derrotas se excluyen. El script se mantiene conforme al material inicial del examen.
 
-### 7.1. Ejemplo de registro
+## 2. Configurar y ejecutar
 
-**POST** `/api/auth/registro`
+En PowerShell, desde la raíz (donde está `pom.xml`):
+
+```powershell
+$env:DB_PORT = '3306'
+$env:DB_PASSWORD = Read-Host 'Contraseña de MySQL'
+& .\mvnw.cmd clean verify
+& .\mvnw.cmd spring-boot:run
+```
+
+Abrir `http://localhost:8080`. El frontend está en `src/main/resources/static/`, servido por Spring Boot; se carga React 18 con JSX desde CDN y utiliza únicamente `fetch` para acceder a la API.
+
+Para detener el servidor usa `Ctrl+C`. La contraseña se pasa por variable de entorno en la sesión actual; **no la incluyas en Git**. Las propiedades de `src/main/resources/application.properties` conservan la conexión a `minas` y usan `ddl-auto=validate` para no reconstruir el esquema al arrancar.
+
+## 3. Operaciones y reglas
+
+| Método | Ruta | Propósito |
+|---|---|---|
+| POST | `/api/auth/registro` | Registro (201, 400, 409) |
+| POST | `/api/auth/login` | Login (200, 401) |
+| POST | `/api/auth/logout` | Logout (204) |
+| GET | `/api/auth/me` | Sesión actual |
+| GET | `/api/auth/csrf` | Token anti-CSRF |
+| GET | `/api/niveles` | Catálogo con los tres niveles |
+| POST | `/api/partidas` | Crear partida (201, 409 si ya existe una activa) |
+| GET | `/api/partidas/actual` | Recuperar partida en curso (200, 404) |
+| POST | `/api/partidas/{id}/acciones` | Revelar casilla o alternar bandera |
+| GET | `/api/partidas/{id}` | Consultar partida terminada |
+| POST | `/api/partidas/{id}/abandonar` | Abandonar partida (operación adicional) |
+| GET | `/api/usuarios/{id}/partidas` | Historial del jugador |
+| GET | `/api/ranking` | Mejores tiempos por nivel |
+
+Niveles: **Principiante** 9×9 con 10 minas; **Intermedio** 16×16 con 40 minas; **Experto** 16×30 con 99 minas.
+
+Ejemplo de solicitud para crear una partida, después de iniciar sesión:
 
 ```json
-{
-  "nombre": "Jugador Prueba",
-  "nombreUsuario": "jugador_prueba",
-  "email": "jugador@ejemplo.com",
-  "password": "Clave12345"
-}
+{"nivel":"PRINCIPIANTE"}
 ```
 
-### 7.2. Ejemplo de inicio de sesión
-
-**POST** `/api/auth/login`
+Ejemplo de acción (coordenadas desde 0):
 
 ```json
-{
-  "nombreUsuario": "jugador_prueba",
-  "password": "Clave12345"
-}
+{"tipo":"REVELAR","fila":0,"columna":0}
 ```
 
-Si las credenciales son correctas, el sistema crea una sesión autenticada.
+Para colocar o retirar una bandera, usa `"tipo":"BANDERA"`. Las peticiones POST requieren sesión y token `X-XSRF-TOKEN` obtenido de `/api/auth/csrf`.
 
-## 8. Historial y ranking
+El servidor crea las minas con aleatoriedad segura, cuenta adyacencias, abre en cadena los ceros, detecta victoria al abrir todas las casillas seguras y derrota al pulsar una mina. Todo el tablero se persiste en la columna JSON de MySQL; **el cliente solo recibe casillas visibles**, nunca la lista de minas ocultas. El reloj animado del navegador es visual; el tiempo final oficial lo fija el servidor en milisegundos.
 
-El proyecto implementa consultas para recuperar las partidas de los jugadores y visualizar el ranking.
+El historial distingue `GANADA`, `PERDIDA`, `ABANDONADA` y `EN_CURSO`. El ranking de la vista SQL usa `MIN`, `COUNT`, `AVG`, `JOIN` y `GROUP BY`, y cuenta únicamente victorias; las partidas perdidas no aparecen. La interfaz calcula y destaca la posición del usuario actual dentro del nivel seleccionado.
 
-| Método | Endpoint | Descripción |
-|---|---|---|
-| GET | `/api/usuarios/{id}/partidas` | Consultar el historial del jugador |
-| GET | `/api/ranking` | Consultar el ranking |
+## 4. Seguridad y validaciones
 
-Estas operaciones requieren una sesión autenticada.
+- Autenticación por sesión HTTP con Spring Security.
+- Hash de contraseñas con `Pbkdf2PasswordEncoder`, PBKDF2-HMAC-SHA256, 16 bytes de sal y 600.000 iteraciones; almacenamiento hexadecimal de 96 caracteres.
+- Registro con validación del lado del servidor: nombre, usuario, correo, contraseña y confirmación.
+- Solo el propietario (o el administrador en el historial) puede acceder a sus recursos.
+- Acceso no autenticado 401; recurso ajeno 403; partida duplicada 409.
+- Las validaciones y errores de la API tienen cuerpo JSON sin detalles internos.
 
-La consulta de historial comprueba que el usuario autenticado tenga permiso para consultar las partidas solicitadas.
-
-El ranking utiliza la vista `vw_ranking` definida en la base de datos.
-
-## 9. Pruebas automáticas
-
-El proyecto utiliza JUnit 5 y Mockito para verificar el funcionamiento de los servicios.
-
-Actualmente se han ejecutado correctamente las siguientes pruebas:
-
-| Clase | Cantidad |
-|---|---:|
-| `PasswordServiceTest` | 3 |
-| `AuthServiceTest` | 5 |
-| `HistorialServiceTest` | 3 |
-| `BuscaminasApplicationTests` | 1 |
-| **Total** | **12** |
-
-Las pruebas comprueban el funcionamiento del hash de contraseñas, la autenticación, la validación de usuarios duplicados, la recuperación del historial y el inicio del contexto de Spring Boot.
-
-### 9.1. Ejecutar todas las pruebas
-
-Primero configurar la variable `DB_PASSWORD` y comprobar que MySQL esté iniciado.
-
-Después ejecutar:
+## 5. Pruebas y demostración
 
 ```powershell
-mvn clean test
+$env:DB_PASSWORD = Read-Host 'Contraseña de MySQL'
+& .\mvnw.cmd clean verify
+& .\mvnw.cmd '-Dtest=MotorBuscaminasTest' test
 ```
 
-El resultado obtenido durante el desarrollo fue:
+La validación anterior a la revisión final pasó **20/20 pruebas** y comprobó con MySQL real registro, login, niveles, creación, banderas, revelado, 401/403/409, historial, ranking y persistencia tras reinicio. Repetir `clean verify` tras cualquier modificación.
+
+Probar en el navegador ambos usuarios semilla y un usuario registrado desde la aplicación. Verificar también partidas ganadas y perdidas, recarga de la página, cierre de sesión, cronómetro y tabla de posiciones. El ranking contiene la partida precargada de 45 segundos descrita arriba.
+
+## 6. Proyecto y control de versiones
+
+Estructura principal:
 
 ```text
-Tests run: 12, Failures: 0, Errors: 0, Skipped: 0
-BUILD SUCCESS
+pom.xml
+mvnw.cmd
+minas.sql
+src/main/java/com/bachillerato/buscaminas/
+  config/         (seguridad y codificador)
+  controllers/    (API y errores)
+  dto/            (solicitudes y respuestas)
+  game/           (motor y niveles)
+  models/         (entidades JPA)
+  repositories/   (consultas JPQL y SQL)
+  services/       (reglas de negocio y transacciones)
+src/main/resources/static/   (interfaz web)
+src/test/java/              (pruebas JUnit)
 ```
 
-### 9.2. Ejecutar pruebas individuales
+La rama `feature/datos-seguridad` comprende entidades, repositorios, autenticación, historial y ranking. La rama `feature/juego-react` incorpora motor, API de juego, interfaz React y pruebas, junto con ajustes de integración. El trabajo final se fusiona a `main` mediante Pull Request después de ejecutar las pruebas.
 
-```powershell
-mvn "-Dtest=PasswordServiceTest" test
-mvn "-Dtest=AuthServiceTest" test
-mvn "-Dtest=HistorialServiceTest" test
-```
-
-Las pruebas unitarias de estos servicios utilizan objetos simulados con Mockito, por lo que no requieren conexión directa a MySQL.
-
-La prueba `BuscaminasApplicationTests` sí inicia el contexto de Spring Boot y utiliza la configuración de la base de datos.
-
-## 10. Códigos de respuesta HTTP
-
-El backend utiliza códigos HTTP para comunicar los resultados de las operaciones.
-
-| Código | Significado |
-|---|---|
-| 200 | Solicitud procesada correctamente |
-| 201 | Recurso creado correctamente |
-| 204 | Operación completada sin contenido |
-| 400 | Datos de solicitud inválidos |
-| 401 | Usuario no autenticado o credenciales incorrectas |
-| 403 | Acceso denegado |
-| 404 | Recurso no encontrado |
-| 409 | Conflicto, como un usuario o correo duplicado |
-
-## 11. Módulos pendientes de integración
-
-La versión final del proyecto incorporará:
-
-- Lógica del juego Buscaminas ejecutada en el servidor.
-- Niveles de dificultad.
-- Creación y recuperación de partidas.
-- Acciones para descubrir casillas y colocar banderas.
-- Interfaz web desarrollada con React.
-- Integración de la interfaz con la autenticación y los endpoints del backend.
-- Pruebas finales del juego completo.
-
-Esta sección se actualizará cuando se integren los módulos desarrollados por ambos integrantes.
-
-## 12. Control de versiones
-
-El proyecto utiliza Git y GitHub para organizar el trabajo colaborativo.
-
-Durante el desarrollo se utilizan ramas separadas para los módulos de datos y seguridad y para la lógica del juego y la interfaz.
-
-La integración final se realizará en la rama principal después de verificar que los componentes funcionan correctamente en conjunto.
-## Motor del juego y frontend React (integración del integrante 2)
-
-La aplicación completa se ejecuta desde **una sola URL**: `http://localhost:8080`.
-No se requiere instalar Node.js, npm ni ejecutar un servidor frontend independiente.
-El navegador debe poder cargar los CDN de React 18 y Babel standalone (se necesita conexión a Internet durante la carga inicial de la página).
-
-### Preparación desde cero en Windows
-
-1. Instalar JDK 17 y MySQL 8.
-2. Importar `minas.sql` en MySQL usando MySQL Workbench o el comando `mysql -u root -p -e "SOURCE C:/ruta/absoluta/minas.sql"`.
-   **Advertencia:** el script reemplaza las tablas existentes. Respaldar los datos antes de volver a importarlo.
-3. Abrir PowerShell en la raíz del repositorio (donde se encuentra `pom.xml`).
-4. Si se usa el puerto 3306 de MySQL, establecer `$env:DB_PORT = '3306'` (si no se establece, se usa 3306).
-5. Establecer la contraseña con `$env:DB_PASSWORD = Read-Host 'Contraseña de MySQL'` (no registrar contraseñas en Git).
-6. Ejecutar `./mvnw.cmd clean test` y luego `./mvnw.cmd spring-boot:run`.
-7. Abrir `http://localhost:8080` y registrar una cuenta nueva. El formulario pide nombre, nombre de usuario, correo, contraseña de ocho caracteres con una letra y un número, y confirmación.
-
-**Credenciales de prueba**: el archivo original `minas.sql` incorpora los usuarios `docente` y `jugador1`, ambos con contraseña de prueba `Prueba123$` según su documentación. Se recomienda crear una cuenta nueva para probar el registro.
-
-### Contrato de juego
-
-- `GET /api/niveles` — catálogo de niveles.
-- `POST /api/partidas` — `{ "nivel":"PRINCIPIANTE" }`; `201` o `409` si existe una activa.
-- `GET /api/partidas/actual` — única partida activa; `404` si no hay.
-- `POST /api/partidas/{id}/acciones` — `{ "tipo":"REVELAR", "fila":0, "columna":0 }` o `{ "tipo":"BANDERA", "fila":0, "columna":0 }`.
-- `GET /api/partidas/{id}` — partida finalizada del usuario autenticado.
-- `POST /api/partidas/{id}/abandonar` — operación adicional para terminar voluntariamente una partida y poder iniciar otra.
-- `GET /api/usuarios/{id}/partidas` — historial del jugador autenticado.
-- `GET /api/ranking` — ranking de mejores tiempos por usuario y nivel.
-
-Las coordenadas son cero-indexadas. Las rutas `/api/**` requieren autenticación salvo registro, login y adquisición del token CSRF. Las solicitudes POST incluyen cookie de sesión y token `X-XSRF-TOKEN`, leído del endpoint `/api/auth/csrf`.
-
-### Reglas, privacidad del tablero y tiempo
-
-El backend genera minas aleatorias con `SecureRandom`, calcula adyacencias, abre en cadena zonas de valor cero, procesa banderas y detecta victorias o derrotas. El tablero persistido en la columna MySQL JSON incluye minas, banderas, casillas reveladas y el instante de creación en milisegundos. **Este documento JSON nunca se envía al navegador.** Las respuestas del juego incluyen únicamente un tablero filtrado con estados OCULTA, ABIERTA, BANDERA o EXPLOTADA y números de casillas reveladas; no incluyen coordenadas de minas ocultas. El cronómetro visual es aproximado; la duración final oficial se determina en el servidor.
-
-La tabla `partida` conserva estado `TERMINADA` tanto para victorias como derrotas. Para distinguirlas sin agregar una tabla ni alterar el enum, el JSON conserva `resultado` = `GANADA` o `PERDIDA`. La vista `vw_ranking` filtra victorias y conserva compatibilidad con la partida semilla del SQL original (3 estrellas).
-
-### Pruebas
-
-`./mvnw.cmd -Dtest=MotorBuscaminasTest test` ejecuta pruebas unitarias de niveles, generación de minas, apertura en cadena, banderas, casos inválidos, derrota, victoria y protección de las casillas ocultas.
-
-`./mvnw.cmd clean test` ejecuta todas las pruebas (requiere MySQL y variables de entorno configuradas, porque existe una prueba de contexto).
-
-Se debe comprobar manualmente además: registro, login, logout, GET /api/auth/me, POST protegido sin sesión (401/403), creación de partida, 409 por doble partida activa, recuperación de partida tras reinicio, historial/ranking y que las respuestas REST no incluyen el arreglo `minas`.
+Para entregar, incluir la URL pública del repositorio y `Grupo@examen2.zip` que contenga la carpeta `examen2-respuesta/`, **incluyendo `.git/`** y excluyendo `target/`, `build/`, `.idea/` y archivos `.iml`.
