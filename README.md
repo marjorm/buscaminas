@@ -70,7 +70,7 @@ Si `.\mvnw.cmd` no funciona, puede utilizarse `mvn` con Maven instalado. Las pru
 
 ## 4. Uso del juego
 
-1. Abrir la página y registrarse, o iniciar sesión con una cuenta de demostración.
+1. Abrir la página y registrar una cuenta nueva desde la opción de registro. Después, iniciar sesión con las credenciales creadas.
 2. Elegir un nivel:
 
    | Nivel | Dimensiones | Minas |
