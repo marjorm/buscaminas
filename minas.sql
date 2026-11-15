@@ -127,6 +127,11 @@ FROM `partida` p
 JOIN `usuario` u ON u.`id` = p.`usuario_id`
 WHERE p.`estado` = 'TERMINADA'
   AND p.`tiempo_ms` IS NOT NULL
+  -- Solo victorias: las derrotas también tienen estado TERMINADA.
+  AND (
+    JSON_UNQUOTE(JSON_EXTRACT(JSON_UNQUOTE(p.`tablero`), '$.resultado')) = 'GANADA'
+    OR (JSON_EXTRACT(JSON_UNQUOTE(p.`tablero`), '$.resultado') IS NULL AND p.`estrellas` = 3)
+  )
 GROUP BY u.`id`, u.`nombre_usuario`, u.`email`, p.`nivel`;
 
 
